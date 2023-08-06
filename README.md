@@ -87,3 +87,6 @@ Run the container
 ```
 bash docker_run_server.sh
 ```
+
+windows
+python -m uvicorn main:app --host 0.0.0.0 --port 7979 --reload

@@ -6,3 +6,5 @@ opencv_contrib_python==4.7.0.68
 Pillow==9.4.0
 uvicorn==0.20.0
 python-multipartgit
+tempfile
+uuid
