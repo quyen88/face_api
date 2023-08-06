@@ -7,20 +7,18 @@ from PIL import Image
 from deepface import DeepFace
 from utils import remove_representation, check_empty_db
 from typing import Optional
-
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import FastAPI, Query, HTTPException, File, UploadFile
-
+from fastapi.responses import JSONResponse
+# import tempfile
+import uuid
 import numpy as np
+
 
 app = FastAPI()
 
 origins = [
-    # "http://localhost.tiangolo.com",
-    # "https://localhost.tiangolo.com",
-    # "http://localhost",
-    # "http://localhost:8000",
     "*",
 ]
 
@@ -39,7 +37,7 @@ def root():
     '''
     if os.path.exists(config.DB_PATH):
         return {
-            "message": "Nhận dạng khuôn mặt."
+            "message": "Face Recogition."
         }
     else:
         return {
@@ -380,3 +378,122 @@ def del_db():
         }
     else:
         raise HTTPException(status_code=500, detail="Some thing wrong happened.")
+    
+
+@app.post("/face_video")
+def face_in_video(video_file: UploadFile = File(..., description="Query video file"),
+    return_video_name: bool = Query(
+        default=True,
+        description="Whether to return only the image name or the full image path",
+    )):
+    
+    if not os.path.exists("query_video"):
+        os.makedirs("query_video")
+
+    if not os.path.exists(config.DB_OUT):
+        os.makedirs(config.DB_OUT)
+        # os.makedirs(os.path.join("query_video_output", video_file.filename))
+   
+    out_temp = uuid.uuid1()
+    farme_out = str(os.makedirs(os.path.join(config.DB_OUT,str(out_temp))))
+ 
+    if '/' in video_file.filename:    
+        query_video_path = os.path.join("query_video", video_file.filename.split('/')[-1])
+    elif "\\" in video_file.filename:
+        query_video_path = os.path.join("query_video", video_file.filename.split("\\")[-1])
+    else:
+        query_video_path = os.path.join("query_video", video_file.filename)
+    
+    with open(query_video_path, "wb") as w:
+        shutil.copyfileobj(video_file.file, w)
+
+    df = DeepFace.stream(source=query_video_path, 
+                        db_path = config.DB_PATH,
+                        frame_save= config.DB_OUT+'/'+str(out_temp),
+                        model_name = config.MODELS[config.MODEL_ID_VIDEO], 
+                        distance_metric = config.METRICS[config.METRIC_ID_VIDEO], 
+                        detector_backend = config.DETECTORS[config.DETECTOR_ID_VIDEO],
+                        enable_face_analysis= False,
+                        frame_threshold=5,time_threshold=5)
+    return {
+            "all_images_file": [str(out_temp) + '/' + file for file in os.listdir(os.path.join(config.DB_OUT,str(out_temp)))]
+        }
+    # # except:
+    # #     return {
+    # #         'error': "Error happening when trying to detecting face or recognition"
+    # #     }
+
+   
+    
+    # # Remove query image
+    # # os.remove(query_img_path)
+
+@app.get('/show_face/{folder_id}/{file_name}')
+def get_img(folder_id: Optional[str] =None, file_name: Optional[str] = None):
+    folder_path = os.path.join(config.DB_OUT, folder_id)
+    
+    file_location = os.path.join(folder_path, file_name)
+    if os.path.isfile(file_location):
+        return FileResponse(file_location)
+    else:
+        return {"error": "File not found"}
+    
+        
+
+# @app.post("/analyze_video/")
+# async def analyze_video(file: UploadFile = File(...)):
+#     # read video file
+#     temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4")
+    
+#     # Save uploaded video to the temporary file
+#     video = await file.read()
+#     with open(temp_file.name, 'wb') as f:
+#         f.write(video)
+
+#     video_capture = cv.VideoCapture(temp_file.name)
+#     results = []
+#     frame_counter = 0
+#     os.makedirs("frames", exist_ok=True)
+  
+#     while video_capture.isOpened():
+#         # Capture frame-by-frame
+#         ret, frame = video_capture.read()
+        
+#         if not ret:
+#             break
+        
+#         frame_counter += 1
+#         if frame_counter % 100 == 0: 
+        
+#         # Use DeepFace to find face in the frame
+#         # result = DeepFace.f(frame, actions = ['age', 'gender', 'race', 'emotion'])
+#             result = DeepFace.find(img_path=frame, 
+#                         db_path = config.DB_PATH, 
+#                         model_name = config.MODELS[config.MODEL_ID_VIDEO], 
+#                         distance_metric = config.METRICS[config.METRIC_ID_VIDEO], 
+#                         detector_backend = config.DETECTORS[config.DETECTOR_ID_VIDEO],
+#                         silent = True, align = True, prog_bar = False, enforce_detection=False)
+
+#             # Convert the result DataFrame to a dictionary
+#             result_dict = result.to_dict()
+
+#             # If "identity" exists in result, save the frame
+#             if 'identity' in result_dict and '0' in result_dict['identity']:
+#                 # cv.imwrite(f'frame_{frame_counter}.jpg', frame)
+#                 cv.imshow('Video', frame)
+#                 # if os.path.exists('./frames'):
+#                 #     try:
+#                 #         cv.imwrite(f'./frames/frame_{frame_counter}.jpg', frame)
+#                 #     except Exception as e:
+#                 #         print("Failed to write frame: ", e)
+#                 # else:
+#                 #         print("Directory ./frames does not exist")
+#         # append the result to results list
+#             results.append(result_dict)
+#         # cv.imshow('Video', frame)
+#         if cv.waitKey(1) & 0xFF == ord('q'):
+#             break
+#     video_capture.release()
+#     cv.destroyAllWindows()
+
+#     return JSONResponse(content=results)

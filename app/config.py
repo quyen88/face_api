@@ -6,14 +6,19 @@ METRIC_ID = 2
 MODEL_ID = 6
 DETECTOR_ID = 4
 
+METRIC_ID_VIDEO = 2
+MODEL_ID_VIDEO = 6
+DETECTOR_ID_VIDEO = 0
+
 ### Data Config
 DB_PATH = "data"  # relative path to images database (in this case is a folder of image)
+DB_OUT = "frame_out"
 RESIZE = False
 SIZE = (300, 300)
 
 #### -----------------!!!----------------- ###
 
-### Model's Arguments Options
+### Model's Arguments Options 
 ### DO NOT EDIT! ###
 METRICS = [
   "cosine",   # 0
@@ -37,5 +42,6 @@ DETECTORS = [
   'dlib',   # 2
   'mtcnn',  # 3
   'retinaface', # 4
-  'mediapipe' # 5
+  'mediapipe', # 5
+  'yolov8'   #6
 ]
